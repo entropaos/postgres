@@ -175,6 +175,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 	uint32		hashvalue;
 	int			batchno;
 	ParallelHashJoinState *parallel_state;
+	bool		table_reversed;
 
 	/*
 	 * get information from HashJoin node
@@ -186,6 +187,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 	hashtable = node->hj_HashTable;
 	econtext = node->js.ps.ps_ExprContext;
 	parallel_state = hashNode->parallel_state;
+	table_reversed = ((HashJoin *)node->js.ps.plan)->table_reversed;
 
 	/*
 	 * Reset per-tuple memory context to free any expression evaluation
@@ -453,6 +455,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				 */
 				if (joinqual == NULL || ExecQual(joinqual, econtext))
 				{
+					bool first_match = !HeapTupleHeaderHasMatch(HJTUPLE_MINTUPLE(node->hj_CurTuple));
 					node->hj_MatchedOuter = true;
 
 					if (parallel)
@@ -478,10 +481,14 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 					/* In an antijoin, we never return a matched tuple */
 					if (node->js.jointype == JOIN_ANTI)
 					{
-						node->hj_JoinState = HJ_NEED_NEW_OUTER;
+						/*
+						 * If the anti join outputs inner tuples, the single outer tuple should
+						 * shoot all inner tuples.
+						 */
+						if (!table_reversed)
+							node->hj_JoinState = HJ_NEED_NEW_OUTER;
 						continue;
 					}
-
 					/*
 					 * If we only need to join to the first matching inner
 					 * tuple, then consider returning this one, but after that
@@ -489,6 +496,14 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 					 */
 					if (node->js.single_match)
 						node->hj_JoinState = HJ_NEED_NEW_OUTER;
+					else if (node->js.jointype == JOIN_SEMI && table_reversed && !first_match)
+					{
+						/*
+						 * The semi join outputs inner tuples, so only the first match
+						 * for a tuple should emit an output.
+						 */
+						continue;
+					}
 
 					if (otherqual == NULL || ExecQual(otherqual, econtext))
 						return ExecProject(node->js.ps.ps_ProjInfo);
@@ -680,7 +695,8 @@ ExecInitHashJoin(HashJoin *node, EState *estate, int eflags)
 	 * detect whether we need only consider the first matching inner tuple
 	 */
 	hjstate->js.single_match = (node->join.inner_unique ||
-								node->join.jointype == JOIN_SEMI);
+								(node->join.jointype == JOIN_SEMI &&
+								 !node->table_reversed));
 
 	/* set up null tuples for outer joins, if needed */
 	switch (node->join.jointype)
@@ -688,8 +704,15 @@ ExecInitHashJoin(HashJoin *node, EState *estate, int eflags)
 		case JOIN_INNER:
 		case JOIN_SEMI:
 			break;
-		case JOIN_LEFT:
 		case JOIN_ANTI:
+			if (node->table_reversed)
+				hjstate->hj_NullOuterTupleSlot =
+					ExecInitNullTupleSlot(estate, outerDesc, &TTSOpsVirtual);
+			else
+				hjstate->hj_NullInnerTupleSlot =
+					ExecInitNullTupleSlot(estate, innerDesc, &TTSOpsVirtual);
+			break;
+		case JOIN_LEFT:
 			hjstate->hj_NullInnerTupleSlot =
 				ExecInitNullTupleSlot(estate, innerDesc, &TTSOpsVirtual);
 			break;

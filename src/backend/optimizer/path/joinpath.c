@@ -149,6 +149,7 @@ add_paths_to_joinrel(PlannerInfo *root,
 	extra.mergeclause_list = NIL;
 	extra.sjinfo = sjinfo;
 	extra.param_source_rels = NULL;
+	extra.table_reversed = false;
 
 	/*
 	 * See if the inner relation is provably unique for this outer rel.
@@ -317,6 +318,13 @@ add_paths_to_joinrel(PlannerInfo *root,
 	if (enable_hashjoin || jointype == JOIN_FULL)
 		hash_inner_and_outer(root, joinrel, outerrel, innerrel,
 							 jointype, &extra);
+	if (enable_hashjoin && (jointype == JOIN_SEMI || jointype == JOIN_ANTI))
+	{
+		extra.table_reversed = true;
+		hash_inner_and_outer(root, joinrel, innerrel, outerrel,
+							 jointype, &extra);
+		extra.table_reversed = false;
+	}
 
 	/*
 	 * 5. If inner and outer relations are foreign tables (or joins) belonging

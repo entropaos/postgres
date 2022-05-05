@@ -1670,6 +1670,7 @@ typedef struct HashPath
 	JoinPath	jpath;
 	List	   *path_hashclauses;	/* join clauses used for hashing */
 	int			num_batches;	/* number of batches expected */
+	bool		table_reversed;
 	Cardinality	inner_rows_total;	/* total inner rows expected */
 } HashPath;
 
@@ -2535,6 +2536,7 @@ typedef struct JoinPathExtraData
 	List	   *restrictlist;
 	List	   *mergeclause_list;
 	bool		inner_unique;
+	bool		table_reversed;
 	SpecialJoinInfo *sjinfo;
 	SemiAntiJoinFactors semifactors;
 	Relids		param_source_rels;

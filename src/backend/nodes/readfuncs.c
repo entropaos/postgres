@@ -2317,6 +2317,7 @@ _readHashJoin(void)
 	READ_NODE_FIELD(hashoperators);
 	READ_NODE_FIELD(hashcollations);
 	READ_NODE_FIELD(hashkeys);
+	READ_BOOL_FIELD(table_reversed);
 
 	READ_DONE();
 }

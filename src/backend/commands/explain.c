@@ -1524,9 +1524,13 @@ ExplainNode(PlanState *planstate, List *ancestors,
 						break;
 					case JOIN_SEMI:
 						jointype = "Semi";
+						if (IsA(plan, HashJoin) && ((HashJoin *)plan)->table_reversed)
+							jointype = "Right Semi";
 						break;
 					case JOIN_ANTI:
 						jointype = "Anti";
+						if (IsA(plan, HashJoin) && ((HashJoin *)plan)->table_reversed)
+							jointype = "Right Anti";
 						break;
 					default:
 						jointype = "???";

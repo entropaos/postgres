@@ -787,6 +787,7 @@ _outHashJoin(StringInfo str, const HashJoin *node)
 	WRITE_NODE_FIELD(hashoperators);
 	WRITE_NODE_FIELD(hashcollations);
 	WRITE_NODE_FIELD(hashkeys);
+	WRITE_BOOL_FIELD(table_reversed);
 }
 
 static void

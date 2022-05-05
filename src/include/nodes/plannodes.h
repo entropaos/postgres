@@ -790,6 +790,7 @@ typedef struct HashJoin
 	 * perform lookups in the hashtable over the inner plan.
 	 */
 	List	   *hashkeys;
+	bool		table_reversed;
 } HashJoin;
 
 /* ----------------

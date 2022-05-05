@@ -4001,8 +4001,9 @@ final_cost_hashjoin(PlannerInfo *root, HashPath *path,
 
 	/* CPU costs */
 
-	if (path->jpath.jointype == JOIN_SEMI ||
-		path->jpath.jointype == JOIN_ANTI ||
+	if ((!extra->table_reversed &&
+		 (path->jpath.jointype == JOIN_SEMI ||
+		  path->jpath.jointype == JOIN_ANTI)) ||
 		extra->inner_unique)
 	{
 		double		outer_matched_rows;
